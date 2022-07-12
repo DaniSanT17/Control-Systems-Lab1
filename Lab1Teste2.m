@@ -10,10 +10,11 @@ rl = 0; % Ohms Resistência de enrolamento
 C = 2.2e-3; % F Capacitância
 Vci = 1e-1;
 ILi = 0;
-u0 = d*0;
+u0 = d*0.05;
 
 Ts = 1e-5; % Tempo de amostragem
-T = 0.14; % Tempo de simulação
+T = 0.14; % Tempo de simulação 1
+T2 = 0.2; % Tempo de simulação 2
 To = 0.08;
 t = 0:Ts:T; % Vetor do tempo
 
@@ -121,7 +122,7 @@ for ii=1:4
     Css = [0 1];
     Dss = [0];
     sys = ss(Ass,Bss,Css,Dss);
-    sysTf = tf(sys)
+    sysTf = tf(sys);
     [yft,t,xft] = lsim(sysTf,di,t);
     Rvcl(:,ii) = yft;
     
@@ -213,15 +214,117 @@ ylabel('Tensão (V)', 'FontSize', 14);
 
 
 %% Exp2
+
 R = 4;
 Po = 10;
 C = 2.2e-3;
 
 numFT = Vin/(C*L);
 denC1 = 1;
-denC2 = (1/(R*C)+Po/(C*Vc0^2)+rl/L);
-denC3 = ((Po*rl/Vc0^2+rl/R+1)*1/(L*C));
-H = 1;
-ki = 1;
-kp = 1;
-kd = 1;
+denC2 = (1/(R*C)-Po/(C*Vc0^2)+rl/L);
+denC3 = ((-Po*rl/Vc0^2+rl/R+1)*1/(L*C));
+
+%% Especificações
+Wn = sqrt(denC3); % frequência natural
+zeta = denC2/(2*Wn); % grau de amortecimento
+ess = 0.01; % erro no regime estacionário
+tr = 1.8/Wn; % tempo de subida
+ts = - log(ess)/(zeta*Wn); % tempo de acomodação
+mp = 100 * exp(-zeta*pi/sqrt(1-zeta^2)); % máximo sobressinal
+tp = pi/(Wn*sqrt(1-zeta^2)); % tempo de pico
+
+%% Malha aberta
+Ti0 = 0; % tempo que o degrau é aplicado
+H = 0;
+kp = 1; % ganho proporcional do controlador
+
+CT = kp;
+out_sim2 = sim('Lab1Exp2', T2);
+t2 = 0:Ts:T2;
+figure();
+plot(t2, out_sim2.Data(:,2));
+legend('Diagrama de Bloco Malha aberta', 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+%% Malha fechada controlador P
+CTI =0;
+CTD =0;
+Ti0= T2/10; % tempo que o degrau é aplicado
+H = 1; % sensor perfeito
+e_ss = [0.1, 0.05, 0.02, 0.01];
+kp_p_ess = [out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2)];
+for ii = 1:4
+    e_s = e_ss(ii);
+    kp = (1-e_s)/(20.002*e_s); % ganho proporcional do controlador
+    CT = kp;
+    out_sim3 = sim('Lab1Exp2', T2);
+    kp_p_ess(:,ii)=out_sim3.DataP(:,2);
+end
+%plot(t2, ki_p_ess(:,1),t2, ki_p_ess(:,2),t2, ki_p_ess(:,3),t2, ki_p_ess(:,4));
+figure();
+subplot(4,1,1);
+plot(t2, kp_p_ess(:,1));
+legend(['Malha Fechada p/ ess = 10% e kp = ' num2str((1-0.1)/(20.002*0.1))], 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+subplot(4,1,2);
+plot(t2, kp_p_ess(:,2));
+legend(['Malha Fechada p/ ess = 5% e kp = ' num2str((1-0.05)/(20.002*0.05))], 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+subplot(4,1,3);
+plot(t2, kp_p_ess(:,3));
+legend(['Malha Fechada p/ ess = 2% e kp = ' num2str((1-0.02)/(20.002*0.02))], 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+subplot(4,1,4);
+plot(t2, kp_p_ess(:,4));
+legend(['Malha Fechada p/ ess = 1% e kp = ' num2str((1-0.01)/(20.002*0.01))], 'FontSize',14);
+%legend({'Malha Fechada p/ ess = 10%','Malha Fechada p/ ess = 5%', 'Malha Fechada p/ ess = 2%', 'Malha Fechada p/ ess = 1%'}, 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+%% Malha fechada controlador PI
+CTD =0;
+Ti0= T2/10; % tempo que o degrau é aplicado
+H = 1; % sensor perfeito
+kp_s = [0.5, 0.5, 10, 10];
+ki_s = [0.5, 10, 0.5, 10];
+ki_p_ess = [out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2)];
+for ii = 1:4
+    CT = kp_s(ii);
+    CTI = ki_s(ii);
+    out_sim3 = sim('Lab1Exp2', T2);
+    ki_p_ess(:,ii)=out_sim3.DataPI(:,2);
+end
+%plot(t2, ki_p_ess(:,1),t2, ki_p_ess(:,2),t2, ki_p_ess(:,3),t2, ki_p_ess(:,4));
+figure();
+subplot(4,1,1);
+plot(t2, ki_p_ess(:,1));
+legend('Malha Fechada p/ kp = 0.5 e ki = 0.5', 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+subplot(4,1,2);
+plot(t2, ki_p_ess(:,2));
+legend('Malha Fechada p/ kp = 0.5 e ki = 10' , 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+subplot(4,1,3);
+plot(t2, ki_p_ess(:,3));
+legend('Malha Fechada p/ kp = 10 e ki = 0.5' , 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
+subplot(4,1,4);
+plot(t2, ki_p_ess(:,4));
+legend('Malha Fechada p/ kp = 10 e ki = 10' , 'FontSize',14);
+%legend({'Malha Fechada p/ ess = 10%','Malha Fechada p/ ess = 5%', 'Malha Fechada p/ ess = 2%', 'Malha Fechada p/ ess = 1%'}, 'FontSize',14);
+xlabel('Tempo (s)', 'FontSize', 14);
+ylabel('Tensão (V)', 'FontSize', 14);
+
