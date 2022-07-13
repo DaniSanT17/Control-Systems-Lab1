@@ -219,6 +219,9 @@ R = 4;
 Po = 10;
 C = 2.2e-3;
 
+CTI = 0;
+CTD = 0;
+
 numFT = Vin/(C*L);
 denC1 = 1;
 denC2 = (1/(R*C)-Po/(C*Vc0^2)+rl/L);
@@ -242,18 +245,16 @@ CT = kp;
 out_sim2 = sim('Lab1Exp2', T2);
 t2 = 0:Ts:T2;
 figure();
-plot(t2, out_sim2.Data(:,2));
+plot(t2, out_sim2.DataP(:,2));
 legend('Diagrama de Bloco Malha aberta', 'FontSize',14);
 xlabel('Tempo (s)', 'FontSize', 14);
 ylabel('Tensão (V)', 'FontSize', 14);
 
 %% Malha fechada controlador P
-CTI =0;
-CTD =0;
 Ti0= T2/10; % tempo que o degrau é aplicado
 H = 1; % sensor perfeito
 e_ss = [0.1, 0.05, 0.02, 0.01];
-kp_p_ess = [out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2)];
+kp_p_ess = [out_sim2.DataP(:,2), out_sim2.DataP(:,2), out_sim2.DataP(:,2), out_sim2.DataP(:,2)];
 for ii = 1:4
     e_s = e_ss(ii);
     kp = (1-e_s)/(20.002*e_s); % ganho proporcional do controlador
@@ -292,39 +293,55 @@ ylabel('Tensão (V)', 'FontSize', 14);
 CTD =0;
 Ti0= T2/10; % tempo que o degrau é aplicado
 H = 1; % sensor perfeito
-kp_s = [0.5, 0.5, 10, 10];
-ki_s = [0.5, 10, 0.5, 10];
-ki_p_ess = [out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2), out_sim2.Data(:,2)];
-for ii = 1:4
+kp_s = [0.5, 0.5, 0.5, 1, 1];
+ki_s = [10,20, 30, 10, 20];
+ki_p_ess = [out_sim3.DataPI(:,2), out_sim3.DataPI(:,2), out_sim3.DataPI(:,2), out_sim3.DataPI(:,2), out_sim3.DataPI(:,2)];
+for ii = 1:5
     CT = kp_s(ii);
     CTI = ki_s(ii);
     out_sim3 = sim('Lab1Exp2', T2);
     ki_p_ess(:,ii)=out_sim3.DataPI(:,2);
 end
-%plot(t2, ki_p_ess(:,1),t2, ki_p_ess(:,2),t2, ki_p_ess(:,3),t2, ki_p_ess(:,4));
 figure();
-subplot(4,1,1);
-plot(t2, ki_p_ess(:,1));
-legend('Malha Fechada p/ kp = 0.5 e ki = 0.5', 'FontSize',14);
+for ii=1:5
+    subplot(5,1,ii);
+    plot(t2, ki_p_ess(:,ii));
+    legend(['Malha Fechada p/ kp = ' num2str(kp_s(ii)) ' e ki = ' num2str(ki_s(ii))], 'FontSize',14);
+    xlabel('Tempo (s)', 'FontSize', 14);
+    ylabel('Tensão (V)', 'FontSize', 14);
+end
+
+%% Malha fechada controlador PID
+
+Ti0= T2/10; % tempo que o degrau é aplicado
+H = 1; % sensor perfeito
+kp_s = [0.5, 0.5, 0.5, 0.5, 0.5];
+ki_s = [0.1,0.1, 0.1, 0.1, 0.1];
+kd_s = [0, 1e-4, 1e-3, 1e-2, 2e-2];
+kd_p_ess = [out_sim2.DataPI(:,2), out_sim2.DataPI(:,2), out_sim2.DataPI(:,2), out_sim2.DataPI(:,2), out_sim2.DataPI(:,2)];
+for ii = 1:5
+    CT = kp_s(ii);
+    CTI = ki_s(ii);
+    CTD = kd_s(ii);
+    out_sim4 = sim('Lab1Exp2', T2);
+    kd_p_ess(:,ii)=out_sim4.DataPID(:,2);
+end
+figure();
+for ii=1:5
+    subplot(5,1,ii);
+    plot(t2, kd_p_ess(:,ii));
+    legend(['Malha Fechada p/ kp = ' num2str(kp_s(ii)) '; ki = ' num2str(ki_s(ii)) ' e kd = ' num2str(kd_s(ii))], 'FontSize',14);
+    xlabel('Tempo (s)', 'FontSize', 14);
+    ylabel('Tensão (V)', 'FontSize', 14);
+end
+
+%% Equação diofantina
+CT = -0.0447;
+CTI = 0.3066;
+CTD = 5.169e-5;
+out_sim5 = sim('Lab1Exp2', T2);
+figure();
+plot(t2, out_sim5.DataPID(:,2));
+legend(['Malha Fechada p/ kp = ' num2str(CT) '; ki = ' num2str(CTI) ' e kd = ' num2str(CTD)], 'FontSize',14);
 xlabel('Tempo (s)', 'FontSize', 14);
 ylabel('Tensão (V)', 'FontSize', 14);
-
-subplot(4,1,2);
-plot(t2, ki_p_ess(:,2));
-legend('Malha Fechada p/ kp = 0.5 e ki = 10' , 'FontSize',14);
-xlabel('Tempo (s)', 'FontSize', 14);
-ylabel('Tensão (V)', 'FontSize', 14);
-
-subplot(4,1,3);
-plot(t2, ki_p_ess(:,3));
-legend('Malha Fechada p/ kp = 10 e ki = 0.5' , 'FontSize',14);
-xlabel('Tempo (s)', 'FontSize', 14);
-ylabel('Tensão (V)', 'FontSize', 14);
-
-subplot(4,1,4);
-plot(t2, ki_p_ess(:,4));
-legend('Malha Fechada p/ kp = 10 e ki = 10' , 'FontSize',14);
-%legend({'Malha Fechada p/ ess = 10%','Malha Fechada p/ ess = 5%', 'Malha Fechada p/ ess = 2%', 'Malha Fechada p/ ess = 1%'}, 'FontSize',14);
-xlabel('Tempo (s)', 'FontSize', 14);
-ylabel('Tensão (V)', 'FontSize', 14);
-
